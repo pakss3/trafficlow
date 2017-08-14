@@ -103,6 +103,7 @@ function crawl_page($url, $depth = 1)
     if (isset($seen[$url]) || $depth === 0) {
         return;
     }
+
 	$base_url = parse_url($url)["host"];
 
 
