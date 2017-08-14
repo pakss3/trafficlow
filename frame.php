@@ -1,10 +1,40 @@
 <?php
 	require "/common.php";
 ini_set('max_execution_time', 300);
-function getDataURI($image, $mime = '') {
-	$size = getimagesize($image); 
-	
-	return 'data: '.$size['mime'].';base64,'.base64_encode(file_get_contents($image));
+function getDataURI($imageurl, $mime = '') {
+	/*var_dump($imageurl);*/
+	$info = @getimagesize($imageurl);
+	$result = $imageurl;
+
+
+	if ($info['mime'] == 'image/jpeg' or $info['mime'] == 'image/jpg') {
+		ob_start ();
+		$image = imagecreatefromjpeg($imageurl);
+		imagejpeg($image, null, 50);
+		$image_data = ob_get_contents ();
+		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
+
+		ob_end_clean ();
+	}elseif ($info['mime'] == 'image/gif') {
+		ob_start ();
+		$image = imagecreatefromgif($imageurl);
+		imagegif($image, null,50);
+		$image_data = ob_get_contents ();
+		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
+
+		ob_end_clean ();
+	}
+	/*elseif ($info['mime'] == 'image/png'){
+		$image = imagecreatefrompng($imageurl);
+		imagepng($image, null,100);
+	}*/
+
+
+
+
+	/*return 'data: '.$info['mime'].';base64,'.base64_encode(file_get_contents($imageurl));*/
+	return $result;
+
 }
 
 function getUrl($url){
@@ -28,26 +58,40 @@ function getUrl($url){
 	return $href;
 };
 
-function getFullUrl($url){
+function getFullUrl($url, $originUrl){
 	$parts = parse_url($url);
 	$href = "";
+/*var_dump($url, $originUrl);*/
 
-	if(isset($parts['scheme'])){
-		if (0 !== strpos($url, 'http')) {
+	if ( strpos($url, 'http') !== false) {
+		if(isset($parts['scheme'])) {
 			$href = $parts['scheme'] . '://';
-		}else{
+		}else {
 			$href = 'http://';
 		}
+	}else{
+		$href = 'http://';
 	}
-	/*var_dump($parts['host'], $url);*/
 
-	$href .= $parts['host'];
+
+	if( ((!isset($parts['host']))  or ($parts['host'] == null))   ){
+		$href .= $originUrl;
+/*		if(strpos($url,"bg_slidebar.png") !== false){
+			var_dump($href);
+		}*/
+	}else{
+		$href .= $parts['host'];
+
+
+	}
+
+
 	if (isset($parts['port'])) {
 		$href .= ':' . $parts['port'];
 	}
 
 	if (isset($parts['path'])) {
-		$href .= '/' . $parts['path'];
+		$href .=  $parts['path'];
 	}
 
 	return $href;
@@ -59,25 +103,8 @@ function crawl_page($url, $depth = 1)
     if (isset($seen[$url]) || $depth === 0) {
         return;
     }
+	$base_url = parse_url($url)["host"];
 
-	$getImgUrl = function($url){
-        if (0 !== strpos($url, 'http')) {
-            $path =  ltrim($url, '/');
-			$parts = parse_url($url);
-			if( !isset($parts['scheme'])){
-				$url = "http://";
-			}else{
-				$url = $parts['scheme'] . '://';
-				$url .= $parts['host'];
-			}
-
-			if (isset($parts['port'])) {
-				$url .= ':' . $parts['port'];
-			}
-            $url .= $path;
-		}
-		return $url;
-	};
 
     $seen[$url] = true;
 
@@ -104,17 +131,16 @@ function crawl_page($url, $depth = 1)
 
     }
 //
-//    foreach ($img as $element) {
-//		$src = $element->getAttribute('src');
-//		$element->setAttribute('src', getDataURI($getImgUrl($src)));
-//
-//    }
+    foreach ($img as $element) {
+		$src = $element->getAttribute('src');
+		$element->setAttribute('src', getDataURI(getFullUrl($src,$base_url)));
+    }
 
     foreach ($link as $element) {
 		$href = $element->getAttribute('href');
 
         if (0 !== strpos($href, 'http')) {
-			$href = getUrl($url).$href;
+			$href = getFullUrl($href,$base_url);
 		}
 
 		$element->setattribute('href',$href);
@@ -142,20 +168,20 @@ function crawl_page($url, $depth = 1)
 	}*/
 
 
-	while ($img->length > 0) {
+/*	while ($img->length > 0) {
 		$p = $img->item(0);
 		$p->parentNode->removeChild($p);
-	}
+	}*/
 
 	while ($script->length > 0) {
 		$p = $script->item(0);
 		$p->parentNode->removeChild($p);
 	}
-    echo "URL:",$url,PHP_EOL,"CONTENT:",PHP_EOL,finalDataReplace($dom->saveHTML()),PHP_EOL,PHP_EOL;
+    echo "URL:",$url,PHP_EOL,"CONTENT:",PHP_EOL,finalDataReplace($dom->saveHTML(), $base_url),PHP_EOL,PHP_EOL;
 }
 
 
-function crawl_css_page($link){
+function crawl_css_page($link, $base_url = ''){
 	$html = file_get_contents($link);
 
 	if($html === false){
@@ -165,12 +191,16 @@ function crawl_css_page($link){
 
 	for($i =0; count($matches[1]) > $i; $i++) {
 		$link = $matches[0][$i];
-		$url = getFullUrl($matches[1][$i]);
+		$url = $matches[1][$i];
+
 		$size = retrieve_remote_file_size($url);
-		if(round($size / 1024, 2) <= 10){		//100kb
-			$html = str_replace("$link", "", $html);
-		}else{
-			echo var_dump(file_size_format($size));
+		$convertUrl = getFullUrl($url, $base_url);
+		if(round($size / 1024, 2) > 10){		//100kb
+
+			/*$html = str_replace("$link", "", $html);*/
+			$html = str_replace("$link", getDataURI($convertUrl), $html);
+		}else {
+			$html = str_replace("$link", getDataURI($convertUrl), $html);
 
 		}
 
@@ -182,6 +212,7 @@ function crawl_css_page($link){
 
 	return $html;
 }
+
 function findStr($arr, $str)
 {
 	if(!is_array($arr)){ return false; }
@@ -194,7 +225,7 @@ function findStr($arr, $str)
 	return false;
 }
 
-function finalDataReplace($html){
+function finalDataReplace($html, $base_url = ''){
 
 
 
@@ -206,8 +237,7 @@ function finalDataReplace($html){
 		$link = $matches[0][$i];
 
 		if(strpos($url, "css") !== false){
-
-			$html = str_replace("$link", "<style>".crawl_css_page($url)."</style>", $html);
+			$html = str_replace("$link", "<style>".crawl_css_page($url, $base_url)."</style>", $html);
 		}
 	}
 	/*$html = preg_replace("/[<]/i","",$html);*/
