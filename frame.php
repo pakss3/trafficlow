@@ -10,7 +10,7 @@ function getDataURI($imageurl, $mime = '') {
 	if ($info['mime'] == 'image/jpeg' or $info['mime'] == 'image/jpg') {
 		ob_start ();
 		$image = imagecreatefromjpeg($imageurl);
-		imagejpeg($image, null, 50);
+		imagejpeg($image, null, 30);
 		$image_data = ob_get_contents ();
 		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
 
@@ -18,7 +18,7 @@ function getDataURI($imageurl, $mime = '') {
 	}elseif ($info['mime'] == 'image/gif') {
 		ob_start ();
 		$image = imagecreatefromgif($imageurl);
-		imagegif($image, null,50);
+		imagegif($image, null,30);
 		$image_data = ob_get_contents ();
 		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
 
@@ -177,7 +177,8 @@ function crawl_page($url, $depth = 1)
 		$p = $script->item(0);
 		$p->parentNode->removeChild($p);
 	}
-    echo "URL:",$url,PHP_EOL,"CONTENT:",PHP_EOL,finalDataReplace($dom->saveHTML(), $base_url),PHP_EOL,PHP_EOL;
+    /*echo "URL:",$url,PHP_EOL,"CONTENT:",PHP_EOL,finalDataReplace($dom->saveHTML(), $base_url),PHP_EOL,PHP_EOL;*/
+	echo finalDataReplace($dom->saveHTML(), $base_url),PHP_EOL,PHP_EOL;
 }
 
 
