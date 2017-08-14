@@ -1,6 +1,6 @@
 <?php
 	require "/common.php";
-ini_set('max_execution_time', 300);
+ini_set('max_execution_time', 600);
 function getDataURI($imageurl, $mime = '') {
 	/*var_dump($imageurl);*/
 	$info = @getimagesize($imageurl);
@@ -133,7 +133,17 @@ function crawl_page($url, $depth = 1)
 //
     foreach ($img as $element) {
 		$src = $element->getAttribute('src');
-		$element->setAttribute('src', getDataURI(getFullUrl($src,$base_url)));
+		$imgurl = getFullUrl($src,$base_url);
+
+		$convertUrl = getFullUrl($url, $base_url);
+		$size = retrieve_remote_file_size($convertUrl);
+
+		if(round($size / 1024, 2) < 500) {        //100kb
+			$element->setAttribute('src', getDataURI($imgurl));
+		}else{
+			$element->parentNode->appendChild($dom->createElement('div', $element->setAttribute('alt')));
+			$element->parentNode->removeChild($element);
+		}
     }
 
     foreach ($link as $element) {
@@ -194,8 +204,9 @@ function crawl_css_page($link, $base_url = ''){
 		$link = $matches[0][$i];
 		$url = $matches[1][$i];
 
-		$size = retrieve_remote_file_size($url);
+
 		$convertUrl = getFullUrl($url, $base_url);
+		$size = retrieve_remote_file_size($convertUrl);
 		if(round($size / 1024, 2) > 10){		//100kb
 
 			/*$html = str_replace("$link", "", $html);*/
