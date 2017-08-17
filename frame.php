@@ -10,24 +10,29 @@ function getDataURI($imageurl, $mime = '') {
 	if ($info['mime'] == 'image/jpeg' or $info['mime'] == 'image/jpg') {
 		ob_start ();
 		$image = imagecreatefromjpeg($imageurl);
-		imagejpeg($image, null, 30);
-		$image_data = ob_get_contents ();
-		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
-
-		ob_end_clean ();
-	}elseif ($info['mime'] == 'image/gif') {
-		ob_start ();
-		$image = imagecreatefromgif($imageurl);
-		imagegif($image, null,30);
+		imagejpeg($image, null, 10);
 		$image_data = ob_get_contents ();
 		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
 
 		ob_end_clean ();
 	}
-	/*elseif ($info['mime'] == 'image/png'){
+	elseif ($info['mime'] == 'image/gif') {
+		ob_start ();
+		$image = imagecreatefromgif($imageurl);
+		imagegif($image, null,10);
+		$image_data = ob_get_contents ();
+		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
+
+		ob_end_clean ();
+	}elseif ($info['mime'] == 'image/png'){
+		ob_start ();
 		$image = imagecreatefrompng($imageurl);
-		imagepng($image, null,100);
-	}*/
+		imagepng($image, null,9);
+		$image_data = ob_get_contents ();
+		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
+
+		ob_end_clean ();
+	}
 
 
 
@@ -139,12 +144,12 @@ function crawl_page($url, $depth = 1)
 		$convertUrl = getFullUrl($url, $base_url);
 		$size = retrieve_remote_file_size($convertUrl);
 
-		if(round($size / 1024, 2) < 500) {        //100kb
+/*		if(round($size / 1024, 2) < 500) {        //100kb*/
 			$element->setAttribute('src', getDataURI($imgurl));
-		}else{
-			$element->parentNode->appendChild($dom->createElement('div', $element->setAttribute('alt')));
+/*		}else{
+			$element->parentNode->appendChild($dom->createElement('p', $element->setAttribute('alt')));
 			$element->parentNode->removeChild($element);
-		}
+		}*/
     }
 
     foreach ($link as $element) {
@@ -164,7 +169,15 @@ function crawl_page($url, $depth = 1)
 			}
 		}*/
     }
+	foreach ($script as $element) {
+		$src = $element->getAttribute('src');
 
+		if (0 !== strpos($src, 'http')) {
+			$src = getFullUrl($src,$base_url);
+		}
+
+		$element->setattribute('src',$src);
+	}
 /*	
 	while ($link->length > 0) {
 		$p = $link->item(0);
@@ -184,12 +197,24 @@ function crawl_page($url, $depth = 1)
 		$p->parentNode->removeChild($p);
 	}*/
 
-	while ($script->length > 0) {
+	/*while ($script->length > 0) {
 		$p = $script->item(0);
 		$p->parentNode->removeChild($p);
-	}
+	}*/
     /*echo "URL:",$url,PHP_EOL,"CONTENT:",PHP_EOL,finalDataReplace($dom->saveHTML(), $base_url),PHP_EOL,PHP_EOL;*/
-	echo finalDataReplace($dom->saveHTML(), $base_url),PHP_EOL,PHP_EOL;
+
+
+
+	// At the beginning of each page call these two functions
+
+
+// Then do everything you want to do on the page
+	$html = $dom->saveHTML();
+
+
+	print_gzipped_page(finalDataReplace($html, $base_url));
+
+
 }
 
 
@@ -226,6 +251,17 @@ function crawl_css_page($link, $base_url = ''){
 	return $html;
 }
 
+
+function crawl_script_page($link){
+	$html = strip_tags(file_get_contents($link),'<b><i><sup><sub><em><strong><u><br><div><p><span>');
+
+	if($html === false){
+		return "";
+	}
+
+	return $html;
+}
+
 function findStr($arr, $str)
 {
 	if(!is_array($arr)){ return false; }
@@ -253,8 +289,18 @@ function finalDataReplace($html, $base_url = ''){
 			$html = str_replace("$link", "<style>".crawl_css_page($url, $base_url)."</style>", $html);
 		}
 	}
+
+	preg_match_all("/[<]\s*script.+?src\s?[=]\s?[\"|']?(.+?)[\"|'].*?[>].*?[<][\/]script[>]/", $html, $matches);
+	for($i =0; count($matches[1]) > $i; $i++){
+		$url = $matches[1][$i];
+		$link = $matches[0][$i];
+
+		if(strpos($url, ".js") !== false){
+			$html = str_replace("$link", "<script defer >".crawl_script_page($url)."</script>", $html);
+		}
+	}
 	/*$html = preg_replace("/[<]/i","",$html);*/
-	/*$html = preg_replace("/font[-]face.+?([;]|[}])/i","",$html);*/
+	$html = preg_replace("/[<]\s*script.+?src\s?[=]\s?[\"|']?.+?[\"|'].*?[>]/i","<script defer >",$html);
 
 	return $html;
 }
@@ -293,4 +339,69 @@ function file_size_format($clen){
 	return $size;
 }
 
-?>
+
+// Include this function on your pages
+function print_gzipped_page($content) {
+	$encoding = gzipStart();
+	$contents = $content;
+
+
+	if( $encoding ){
+		echo $contents;
+
+		$gzip_size        = ob_get_length();
+		$gzip_contents    = ob_get_clean(); // PHP < 4.3 use ob_get_contents() + ob_end_clean()
+
+
+		header('Content-Encoding: gzip');
+		header('Vary: Accept-Encoding');
+		header("cache-control: must-revalidate");
+		header( 'Content-Length: ' . $gzip_size );
+
+		echo "\x1f\x8b\x08\x00\x00\x00\x00\x00",
+				substr(gzcompress($gzip_contents, 9), 0, - 4),
+				pack('V', crc32($gzip_contents)),    // crc32 and
+				pack('V', $gzip_size);
+
+		exit();
+	}else{
+
+		if(!ob_start("ob_gzhandler")){
+			ob_start();
+		}
+		echo ($contents.PHP_EOL.PHP_EOL);
+		ob_end_flush();
+		exit();
+	}
+}
+
+function gzipStart(){
+	$phpver = phpversion();
+	$useragent = $_SERVER["HTTP_USER_AGENT"];
+	$do_gzip_compress = false;
+
+	if ( $phpver >= '4.0.4pl1' && ( strstr($useragent,'compatible') || strstr($useragent,'Gecko') ) )
+	{
+		if ( extension_loaded('zlib') )
+		{
+			ob_start('ob_gzhandler');
+			$do_gzip_compress = TRUE;
+		}
+	}
+	else if ( $phpver > '4.0' )
+	{
+		if ( strstr($_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip') )
+		{
+			if ( extension_loaded('zlib') )
+			{
+				$do_gzip_compress = TRUE;
+				ob_start();
+				ob_implicit_flush(0);
+
+				header('Content-Encoding: gzip');
+			}
+		}
+	}
+
+	return $do_gzip_compress;
+}

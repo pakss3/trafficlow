@@ -29,13 +29,7 @@ function print_gzipped_page() {
         exit();
     }
 }
-function hasAcceptEncoding($encoding) {
-    return (stripos($_SERVER['HTTP_ACCEPT_ENCODING'], $encoding) !== false);
-}
 
-// At the beginning of each page call these two functions
-ob_start("ob_gzhandler");
-ob_implicit_flush(0);
 
 // Then do everything you want to do on the page
 echo "aaaaaaaaaaaaaaaaaaaaaaaaaaa  dafdasfdsafdsf  fdafdasfasdsfd  fdasfafd
@@ -48,7 +42,6 @@ f
 dsafdasfdasfdasfd
 fdasfdsafdfdasㄹㅇㅁㄹㅇ머ㅏ임ㄹㅇㅁ
 ㄹㅇㅁㄹㅇㅁㄴㄹㅇㄴㅁ
-ㄹㅇㅁㄹㅇㅁㄴ";
+ㄹㅇㅁㄹㅇㅁㄴ
+ㄹㅇㅁㄴㄹ";
 
-// Call this function to output everything as gzipped content.
-print_gzipped_page();
