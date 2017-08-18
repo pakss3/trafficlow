@@ -10,5 +10,5 @@ ini_set('allow_url_include', 'on');
     ini_set('mbstring.func_overload',7);
     header('Content-Type: text/html; charset=UTF-8');
 
-	const fixedUrl = "http://trafficlow:8087/frame.php?url=";
+	const fixedUrl = "https://trafficlow:8087/frame.php?url=";
 ?>

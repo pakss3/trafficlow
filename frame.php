@@ -10,26 +10,27 @@ function getDataURI($imageurl, $mime = '') {
 	if ($info['mime'] == 'image/jpeg' or $info['mime'] == 'image/jpg') {
 		ob_start ();
 		$image = imagecreatefromjpeg($imageurl);
-		imagejpeg($image, null, 10);
+		imagejpeg($image, null, 20);
 		$image_data = ob_get_contents ();
-		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
+		$result = 'data:'.$info['mime'].';base64,'.base64_encode ($image_data);
 
 		ob_end_clean ();
 	}
-	elseif ($info['mime'] == 'image/gif') {
+/*	elseif ($info['mime'] == 'image/gif') {
 		ob_start ();
 		$image = imagecreatefromgif($imageurl);
 		imagegif($image, null,10);
 		$image_data = ob_get_contents ();
-		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
+		$result = 'data:'.$info['mime'].';base64,'.base64_encode ($image_data);
 
 		ob_end_clean ();
-	}elseif ($info['mime'] == 'image/png'){
+	}*/
+	elseif ($info['mime'] == 'image/png'){
 		ob_start ();
 		$image = imagecreatefrompng($imageurl);
-		imagepng($image, null,9);
+		imagepng($image, null,1);
 		$image_data = ob_get_contents ();
-		$result = 'data: '.$info['mime'].';base64,'.base64_encode ($image_data);
+		$result = 'data:'.$info['mime'].';base64,'.base64_encode ($image_data);
 
 		ob_end_clean ();
 	}
@@ -64,43 +65,35 @@ function getUrl($url){
 };
 
 function getFullUrl($url, $originUrl){
-	$parts = parse_url($url);
-	$href = "";
-/*var_dump($url, $originUrl);*/
-
-	if ( strpos($url, 'http') !== false) {
-		if(isset($parts['scheme'])) {
-			$href = $parts['scheme'] . '://';
-		}else {
-			$href = 'http://';
-		}
-	}else{
-		$href = 'http://';
-	}
 
 
-	if( ((!isset($parts['host']))  or ($parts['host'] == null))   ){
-		$href .= $originUrl;
-/*		if(strpos($url,"bg_slidebar.png") !== false){
-			var_dump($href);
-		}*/
-	}else{
-		$href .= $parts['host'];
+    $info  = parse_url($url);
+    $result = "";
+
+    if (!isset($info["scheme"])){
+        $result = "http://";
+    }else{
+        $result = $info["scheme"]."://";
+    }
 
 
-	}
+    if( (!isset($info['host']))  or ($info['host'] == "")   ){
+        $result .= $originUrl;
+    }else{
+        $result .= $info['host'];
+    }
 
+    if (isset($info['port'])) {
+        $result .= ':' . $info['port'];
+    }
 
-	if (isset($parts['port'])) {
-		$href .= ':' . $parts['port'];
-	}
+    if (isset($info['path'])) {
+        $result .=  $info['path'];
+    }
 
-	if (isset($parts['path'])) {
-		$href .=  $parts['path'];
-	}
+    return $result;
+}
 
-	return $href;
-};
 
 function crawl_page($url, $depth = 1)
 {
@@ -139,13 +132,23 @@ function crawl_page($url, $depth = 1)
 //
     foreach ($img as $element) {
 		$src = $element->getAttribute('src');
-		$imgurl = getFullUrl($src,$base_url);
-
-		$convertUrl = getFullUrl($url, $base_url);
+        if($src != "") {
+            $imgurl = getFullUrl($src, $base_url);
+            $convertUrl = getFullUrl($url, $base_url);
+            $element->setAttribute('src', getDataURI($imgurl));
+        }
 		$size = retrieve_remote_file_size($convertUrl);
 
 /*		if(round($size / 1024, 2) < 500) {        //100kb*/
-			$element->setAttribute('src', getDataURI($imgurl));
+
+
+
+            $data_src = $element->getAttribute('data-src');
+            if($data_src != ""){
+                $dataimgurl = getFullUrl($data_src,$base_url);
+                $convertDataUrl = getFullUrl($dataimgurl, $base_url);
+                $element->setAttribute('data-src', getDataURI($dataimgurl));
+            }
 /*		}else{
 			$element->parentNode->appendChild($dom->createElement('p', $element->setAttribute('alt')));
 			$element->parentNode->removeChild($element);
@@ -224,7 +227,7 @@ function crawl_css_page($link, $base_url = ''){
 	if($html === false){
 		return "";
 	}
-	preg_match_all("/background.+?url\s?[(]\s?[\"|']?(.+?)[\"|']?[)]/i", $html, $matches);
+/*	preg_match_all("/background.+?url\s?[(]\s?[\"|']?(.+?)[\"|']?[)]/i", $html, $matches);
 
 	for($i =0; count($matches[1]) > $i; $i++) {
 		$link = $matches[0][$i];
@@ -235,16 +238,12 @@ function crawl_css_page($link, $base_url = ''){
 		$size = retrieve_remote_file_size($convertUrl);
 		if(round($size / 1024, 2) > 10){		//100kb
 
-			/*$html = str_replace("$link", "", $html);*/
 			$html = str_replace("$link", getDataURI($convertUrl), $html);
 		}else {
 			$html = str_replace("$link", getDataURI($convertUrl), $html);
 
 		}
-
-		/*var_dump(getRemoteFilesize($url) );*/
-
-	}
+	}*/
 	/*$html = preg_replace("/background\s*[:].*url.+?([;]|[}]|[\n])/i","",$html);*/
 	$html = preg_replace("/font[-]face.+?([;]|[}]|[\\n])/i","",$html);
 
@@ -289,6 +288,18 @@ function finalDataReplace($html, $base_url = ''){
 			$html = str_replace("$link", "<style>".crawl_css_page($url, $base_url)."</style>", $html);
 		}
 	}
+
+    preg_match_all("/background.+?url\s?[(]\s?[\"|\']?(.+?)[\"|\']?[)]/i", $html, $matches);
+
+    for($i =0; count($matches[1]) > $i; $i++) {
+        $link = $matches[0][$i];
+        $url = $matches[1][$i];
+
+        $convertUrl = getFullUrl($url, $base_url);
+        $html = str_replace("$url", trim(getDataURI($convertUrl)), $html);
+
+    }
+
 
 	preg_match_all("/[<]\s*script.+?src\s?[=]\s?[\"|']?(.+?)[\"|'].*?[>].*?[<][\/]script[>]/", $html, $matches);
 	for($i =0; count($matches[1]) > $i; $i++){
@@ -345,7 +356,6 @@ function print_gzipped_page($content) {
 	$encoding = gzipStart();
 	$contents = $content;
 
-
 	if( $encoding ){
 		echo $contents;
 
@@ -377,6 +387,7 @@ function print_gzipped_page($content) {
 
 function gzipStart(){
 	$phpver = phpversion();
+
 	$useragent = $_SERVER["HTTP_USER_AGENT"];
 	$do_gzip_compress = false;
 
