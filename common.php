@@ -11,5 +11,6 @@
     header('Content-Type: text/html; charset=UTF-8');
     ini_set('max_execution_time', 600);
 
-	const fixedUrl = "https://trafficlow:8087/frame.php?url=";
+	const fixedUrl = "https://trafficlow:8087/resizeframe.php?url=";
+    const imageResizeUrl = "https://trafficlow:8087/resize.php?url=";
 ?>
