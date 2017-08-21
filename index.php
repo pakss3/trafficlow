@@ -1,5 +1,5 @@
 <?php
-	require "/common.php";
+require "common.php";
 ?>
 <!doctype html>
 <html lang="ko">
@@ -19,11 +19,11 @@
 </head>
 <body>
 <div id="urlWriteArea">
-	<input type="text" value="https://m.naver.com/" name="url" id="url"  />&nbsp;
+	<input type="text" value="https://www.google.com/" name="url" id="url"  />&nbsp;
 	<input type="button" name="show" id="show" value="▶" onclick="document.getElementById('webpage').src = ('<?=fixedUrl?>'+ document.getElementById('url').value);"/>
 </div>
 <br /><br />
-<iframe src="" width="70%" height="100%" style="height:100% !important; min-height:500px;" id='webpage' frameborder="1"></iframe>
+<iframe src="" width="70%" height="100%" style="height:100% !important; min-height:500px; width:70% !important; min-width:330px;" id='webpage' frameborder="0"></iframe>
 
 
 </body>
