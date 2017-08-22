@@ -21,7 +21,7 @@ require "common.php";
 </head>
 <body>
 <div id="urlWriteArea">
-	<input type="text" value="https://www.google.com/" name="url" id="url"  />&nbsp;
+	<input type="text" value="https://m.daum.net/" name="url" id="url"  />&nbsp;
 	<input type="button" name="show" id="show" value="▶" onclick="document.getElementById('webpage').src = ('<?=fixedUrl?>'+ document.getElementById('url').value);"/>
 	<input type="text" value="" name="sizex" id="sizex" /> x <input type="text" value="" name="sizey" id="sizey" />
 </div>

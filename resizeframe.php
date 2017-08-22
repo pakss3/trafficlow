@@ -1,38 +1,45 @@
 <?php
 require "common.php";
-
+require 'jsmin.php';
 function getImgMaxWidthSize(){
-    $defaultX = "100";
+    $defaultX = "200";
     return (!isset($_REQUEST["sizex"])) ? $defaultX : $_REQUEST["sizex"];
 }
 function getImgMaxHeightSize(){
-    $defaultY = "100";
+    $defaultY = "200";
     return (!isset($_REQUEST["sizey"])) ? $defaultY : $_REQUEST["sizey"];
 }
 function getDataURI($imageurl) {
-
-    if(strpos($imageurl,"base64") !== false){
+    if((strpos($imageurl,"base64") !== false) or (strpos($imageurl,imageResizeUrl) !== false) or (strpos($imageurl,"sizey") !== false) or (strpos($imageurl,"sizex") !== false) ){
         return $imageurl;
     }
-    return imageResizeUrl.$imageurl."&sizex=".getImgMaxWidthSize()."&sizey=". getImgMaxHeightSize();
 
+    return trim(imageResizeUrl.($imageurl)."&sizex=".getImgMaxWidthSize()."&sizey=". getImgMaxHeightSize());
 }
-function getUrl($url){
-    $parts = parse_url($url);
-    $href = "";
-    if(isset($parts['scheme'])){
-        if (0 !== strpos($url, 'http')) {
-            $href = $parts['scheme'] . '://';
-        }else{
-            $href = 'http://';
-        }
+function addScriptMinifier($srcUrl) {
+    if(strpos($srcUrl,"jsmini") !== false ){
+        return $srcUrl;
     }
-    /*var_dump($parts['host'], $url);*/
-    $href .= $parts['host'];
-    if (isset($parts['port'])) {
-        $href .= ':' . $parts['port'];
+    return trim(jsMiniUrl.($srcUrl));
+}
+
+function getUrl($url, $originUrl){
+    $info  = parse_url($url);
+    $result = "";
+    if (!isset($info["scheme"])){
+        $result = "http://";
+    }else{
+        $result = $info["scheme"]."://";
     }
-    return $href;
+    if( (!isset($info['host']))  or ($info['host'] == "")   ){
+        $result .= $originUrl;
+    }else{
+        $result .= $info['host'];
+    }
+    if (isset($info['port'])) {
+        $result .= ':' . $info['port'];
+    }
+    return $result;
 };
 function getFullUrl($url, $originUrl){
     $info  = parse_url($url);
@@ -70,39 +77,65 @@ if(!function_exists('mb_detect_encoding')) {
     }
 }
 
+function stripInvalidXml($value)
+{
+    $ret = "";
+    $current = null;
+    if (empty($value))
+    {
+        return $ret;
+    }
+
+    $length = strlen($value);
+    for ($i=0; $i < $length; $i++)
+    {
+        $current = ord($value{$i});
+        if (($current == 0x9) ||
+            ($current == 0xA) ||
+            ($current == 0xD) ||
+            (($current >= 0x20) && ($current <= 0xD7FF)) ||
+            (($current >= 0xE000) && ($current <= 0xFFFD)) ||
+            (($current >= 0x10000) && ($current <= 0x10FFFF)))
+        {
+            $ret .= chr($current);
+        }
+        else
+        {
+            $ret .= " ";
+        }
+    }
+    return $ret;
+}
 function crawl_page($url, $depth = 1)
 {
     static $seen = array();
     if (isset($seen[$url]) || $depth === 0) {
         return;
     }
-
     $base_url = parse_url($url)["host"];
     $seen[$url] = true;
     $html =@file_get_contents($url);
     $encoding =mb_detect_encoding($html);
-
     $dom = new DOMDocument('1.0',$encoding);
-
-    @$dom->loadHTML(mb_convert_encoding(@file_get_contents($url), 'HTML-ENTITIES', $encoding));
+    @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', $encoding));
     $anchors = $dom->getElementsByTagName('a');
     $link = $dom->getElementsByTagName('link');
     $script = $dom->getElementsByTagName('script');
     $img = $dom->getElementsByTagName('img');
     $meta = $dom->getElementsByTagName('meta');
-
     foreach ($meta as $element) {
         $charset = $element->getAttribute('charset');
         if($charset != ""){
             $element->setAttribute("charset",$encoding);
         }
     }
-
     foreach ($anchors as $element) {
         $href = $element->getAttribute('href');
-        if (0 !== strpos($href, 'javascript')) {
-            if (0 !== strpos($href, 'http')) {
-                $element->setAttribute('href',fixedUrl.urlencode(getUrl($url).$href));
+
+        if (false === strpos($href, 'javascript')  ) {
+
+            if (false === strpos($href, 'http') ) {
+                $element->setAttribute('href',fixedUrl.urlencode(getUrl($href,$base_url).$href));
             }else{
                 $element->setAttribute('href',fixedUrl.urlencode($href));
             }
@@ -118,7 +151,6 @@ function crawl_page($url, $depth = 1)
             $element->setAttribute('src', getDataURI($imgurl));
 //			$size = retrieve_remote_file_size($convertUrl);
         }
-
         /*		if(round($size / 1024, 2) < 500) {        //100kb*/
         $data_src = $element->getAttribute('data-src');
         if($data_src != ""){
@@ -133,8 +165,8 @@ function crawl_page($url, $depth = 1)
     }
     foreach ($link as $element) {
         $href = $element->getAttribute('href');
-        if (0 !== strpos($href, 'http')) {
-            $href = getFullUrl($href,$base_url);
+        if (!(false !== strpos($src, 'http'))) {
+            $href = http_path_to_url($href,$url);
         }
         $element->setattribute('href',$href);
         /*$header = @get_headers($href);
@@ -147,10 +179,35 @@ function crawl_page($url, $depth = 1)
     }
     foreach ($script as $element) {
         $src = $element->getAttribute('src');
-        if (0 !== strpos($src, 'http')) {
-            $src = getFullUrl($src,$base_url);
+     /*   if($src == "/js/common.js"){
+            echo retrieve_remote_file(getFullUrl($src,$base_url));
+            exit;
+        }*/
+   /*     if(strpos($src, './') !== false){
+            echo $base_url, ":", http_path_to_url($src,$url);
+            exit();
+        }*/
+        if (!(false !== strpos($src, 'http'))) {
+            $src = http_path_to_url($src,$url);
         }
-        $element->setattribute('src',$src);
+
+        /*$element->setAttribute('src',$src);*/
+
+        if($element->nodeValue != ""){
+            $element->removeAttribute("src" );
+        }else{
+            if(strpos($src,".js") !== false) {
+                $element->setAttribute('src', addScriptMinifier(getFullUrl($src,$base_url)));
+            }
+        }
+
+
+/*        if(strpos($src,".js") !== false){
+
+            $element->parentNode->appendChild($dom->createElement('script', " \n//<![CDATA[\n".htmlentities(crawl_script_page($src),ENT_COMPAT,"UTF-8" )."\n//]]>\n" ));
+            $element->parentNode->removeChild($element);
+        }*/
+
     }
     /*
         while ($link->length > 0) {
@@ -175,11 +232,27 @@ function crawl_page($url, $depth = 1)
     // At the beginning of each page call these two functions
 // Then do everything you want to do on the page
     $html = $dom->saveHTML();
-
     print_gzipped_page(str_replace("euc-kr","utf-8",finalDataReplace($html, $base_url)));
 }
+
+
+function getCssImport($html, $base_url){
+    preg_match_all("/[@]\s*import.+?url\s?[(]\s?[\"|']?(.+?)[\"|']\s?[)]/", $html, $matches);
+    for($i =0; count($matches[1]) > $i; $i++){
+        $url = $matches[1][$i];
+        $link = $matches[0][$i];
+        if(strpos($url, ".css") !== false){
+            $html = str_replace("$link", crawl_css_page($url, $base_url), $html);
+        }
+    }
+
+    return $html;
+}
+
+
 function crawl_css_page($link, $base_url = ''){
     $html = @file_get_contents($link);
+
     if($html === false){
         return "";
     }
@@ -187,26 +260,32 @@ function crawl_css_page($link, $base_url = ''){
     for($i =0; count($matches[1]) > $i; $i++) {
         $replacelink = $matches[0][$i];
         $url = $matches[1][$i];
-
+        $convertUrl = getDataURI(http_path_to_url($url, $link));
         /*$size = retrieve_remote_file_size($convertUrl);*/
-
         if ( (false !== strpos($url, '.png')) or (false !== strpos($url, '.jpg')) or (false !== strpos($url, '.jpeg')) or (false !== strpos($url, '.gif')) or (false !== strpos($url, './')) ) {
-            $convertUrl = http_path_to_url($url, $link);
-            $html = str_replace("$url", trim(getDataURI($convertUrl)), $html);
+                $html = str_replace("$url", $convertUrl, $html);
         }
         /*            if(round($size / 1024, 2) > 10){		//100kb*/
-
     }
     /*$html = preg_replace("/background\s*[:].*url.+?([;]|[}]|[\n])/i","",$html);*/
     $html = preg_replace("/font[-]face.+?([;]|[}]|[\\n])/i","",$html);
+    $html = getCssImport($html, $base_url);
     return $html;
 }
 function crawl_script_page($link){
-    $html = strip_tags(@file_get_contents($link),'<b><i><sup><sub><em><strong><u><br><div><p><span>');
+    /*$html = strip_tags(@retrieve_remote_file($link),'<b><i><sup><sub><em><strong><u><br><div><p><span><body><html>');*/
+    /*$html = @retrieve_remote_file($link);*/
+    $html = @file_get_contents($link);
+
     if($html === false){
         return "";
     }
-    return $html;
+
+    $html = str_replace("</script>","",$html);
+    $html = JSMin::minify($html);
+
+
+    return ($html);
 }
 function findStr($arr, $str)
 {
@@ -218,38 +297,40 @@ function findStr($arr, $str)
     }
     return false;
 }
+
 function finalDataReplace($html, $base_url = ''){
 //Get the urls out of the page
     preg_match_all("/[<]\s*link.+?href\s?[=]\s?[\"|']?(.+?)[\"|'].*?[>]/", $html, $matches);
     for($i =0; count($matches[1]) > $i; $i++){
         $url = $matches[1][$i];
         $link = $matches[0][$i];
-        if(strpos($url, "css") !== false){
+        if(strpos($url, ".css") !== false){
             $html = str_replace("$link", "<style>".crawl_css_page($url, $base_url)."</style>", $html);
         }
     }
 
+    /*getCssImport($html);*/
+
     preg_match_all("/background.+?url\s?[(]\s?[\"|\']?(.+?)[\"|\']?[)]/i", $html, $matches);
     for($i =0; count($matches[1]) > $i; $i++) {
-        $link = $matches[0][$i];
         $url = $matches[1][$i];
-        if((0 !== strpos($url, 'data:image'))){
-            $convertUrl = http_path_to_url($url, $base_url);
-            $html = str_replace("$url", trim(getDataURI($convertUrl)), $html);
+        $convertUrl = getDataURI(http_path_to_url($url, $base_url));
+        /*$size = retrieve_remote_file_size($convertUrl);*/
+        if ( (false !== strpos($url, '.png')) or (false !== strpos($url, '.jpg')) or (false !== strpos($url, '.jpeg')) or (false !== strpos($url, '.gif')) or (false !== strpos($url, './')) ) {
+                $html = str_replace("$url", $convertUrl, $html);
         }
     }
 
-    preg_match_all("/[<]\s*script.+?src\s?[=]\s?[\"|']?(.+?)[\"|'].*?[>].*?[<][\/]script[>]/", $html, $matches);
+    /*preg_match_all("/[<]\s*script.+?src\s?[=]\s?[\"|']?(.+?)[\"|'].*?[>].*?[<][\/]script[>]/", $html, $matches);
     for($i =0; count($matches[1]) > $i; $i++){
         $url = $matches[1][$i];
         $link = $matches[0][$i];
         if(strpos($url, ".js") !== false){
-            $html = str_replace("$link", "<script defer >".crawl_script_page($url)."</script>", $html);
+            $html = str_replace("$link", " <script> \n//<![CDATA[\n".crawl_script_page($url)."\n//]]>\n</script> ", $html);
         }
     }
-    /*$html = preg_replace("/[<]/i","",$html);*/
-    $html = preg_replace("/[<]\s*script.+?src\s?[=]\s?[\"|']?.+?[\"|'].*?[>]/i","<script defer >",$html);
 
+    $html = preg_replace("/[<]\s?script.+?src\s?[=]\s?[\"|']?.+?[\"|'].*?[>]/i"," <script  >",$html);*/
     return $html;
 }
 crawl_page($_REQUEST["url"],1);
@@ -265,6 +346,22 @@ function retrieve_remote_file_size($url){
     curl_close($ch);
     return $size;
 }
+
+// font[-]face.+?([;]|[}]);
+function retrieve_remote_file($url){
+    $ch = curl_init();;
+    curl_setopt($ch, CURLOPT_AUTOREFERER, TRUE);
+    curl_setopt($ch, CURLOPT_HEADER, 0);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, TRUE);
+
+    $data = curl_exec($ch);
+
+    curl_close($ch);
+    return $data;
+}
+
 function file_size_format($clen){
     $size = $clen;
     switch ($clen) {
@@ -279,78 +376,19 @@ function file_size_format($clen){
     }
     return $size;
 }
-// Include this function on your pages
-function print_gzipped_page($content) {
-    $encoding = gzipStart();
-    $contents = $content;
-
-    if( $encoding ){
-        echo $contents;
-        $gzip_size        = ob_get_length();
-        $gzip_contents    = ob_get_clean(); // PHP < 4.3 use ob_get_contents() + ob_end_clean()
-        header('Content-Encoding: gzip');
-        header('Vary: Accept-Encoding');
-        header("cache-control: must-revalidate");
-        header( 'Content-Length: ' . $gzip_size );
-        echo "\x1f\x8b\x08\x00\x00\x00\x00\x00",
-        substr(gzcompress($gzip_contents, 9), 0, - 4),
-        pack('V', crc32($gzip_contents)),    // crc32 and
-        pack('V', $gzip_size);
-        exit();
-    }else{
-        if(!ob_start("ob_gzhandler")){
-            ob_start();
-        }
-        echo ($contents.PHP_EOL.PHP_EOL);
-        ob_end_flush();
-        exit();
-    }
-}
-function gzipStart(){
-    $phpver = phpversion();
-    $useragent = $_SERVER["HTTP_USER_AGENT"];
-    $do_gzip_compress = false;
-
-    if ( $phpver >= '4.0.4pl1' && ( strstr($useragent,'compatible') || strstr($useragent,'Gecko') ) )
-    {
-        if ( extension_loaded('zlib') )
-        {
-            ob_start('ob_gzhandler');
-            $do_gzip_compress = TRUE;
-        }
-    }
-    else if ( $phpver > '4.0' )
-    {
-        if ( strstr($_SERVER['HTTP_ACCEPT_ENCODING'], 'gzip') )
-        {
-            if ( extension_loaded('zlib') )
-            {
-                $do_gzip_compress = TRUE;
-                ob_start();
-                ob_implicit_flush(0);
-                /*header('Content-Encoding: gzip');*/
-            }
-        }
-    }
-    return $do_gzip_compress;
-}
-
 
 function http_path_to_url($path, $base_uri)
 {
-
-
     if (preg_match("@^[a-z]{1}[a-z0-9\+\-\.]+:@i", $path)) return $path;
     else if ($path=="") return $base_uri;
-
     $base_a	= parse_url($base_uri);
+
     /*var_dump($base_a);*/
-    $base_a['shp']	= substr($base_uri, 0, strlen($base_uri) - strlen($base_a['path'].(isset($base_a['query']) ? '?'.$base_a['query'] : '').(isset($base_a['fragment']) ? '#'.$base_a['fragment'] : '')));
+    $base_a['shp']	= substr($base_uri, 0, strlen($base_uri) - strlen((isset($base_a['path']) ? $base_a['path'] : '').(isset($base_a['query']) ? '?'.$base_a['query'] : '').(isset($base_a['fragment']) ? '#'.$base_a['fragment'] : '')));
     if(!isset($base_a['scheme'])){
         $base_a['scheme'] = "http";
     }
     if (preg_match("@^//@i", $path)) {
-
         return $base_a['scheme'].":".$path;
     } else if (preg_match("@^\?@", $path)) {
         return $base_a['shp'].$base_a['path'].$path;
@@ -365,7 +403,6 @@ function http_path_to_url($path, $base_uri)
                 if (!preg_match("@/@", $base_a['path'])) $base_a['file'] = $base_a['path']; // 파일 만으로 되어 있을 경우 위에서 "/" 검색이 안 되므로
                 $base_a['dir']	= substr($base_a['path'], 0, strlen($base_a['path']) - strlen($base_a['file'])); // 디렉토리, "/" 포함
             }
-
 // 2007-06 : query에 프로토콜이 있을 경우 parse_url가 제대로 작동하지 않으므로 임시 변환 부분 추가
             if (preg_match("@[a-z]{1}[a-z0-9\+\-\.]+:[/]{2,}@i", $path)) {
                 $md5	= md5(microtime()).md5(microtime());
@@ -379,7 +416,6 @@ function http_path_to_url($path, $base_uri)
             if(!isset($base_a['dir'])){
                 $base_a['dir'] = "";
             }
-
             $tp_a	= explode("/", $base_a['dir'].$op_a['path']);
             $tp_c	= count($tp_a);
             $ap_a	= array();
@@ -393,10 +429,8 @@ function http_path_to_url($path, $base_uri)
                     $ap_a[]	= $tp_a[$i];
                 }
             }
-
             $ap	= implode("/", $ap_a);
             if (!preg_match("@^/@", $ap)) $ap = "/".$ap;
-
             return $base_a['shp'] .$ap .(isset($op_a['query']) ? '?'.$op_a['query'] : '') .(isset($op_a['fragment']) ? '#'.$op_a['fragment'] : '') ;
         }
     }

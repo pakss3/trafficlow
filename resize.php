@@ -6,7 +6,7 @@
 // $picname = resizepics('pics', 'new widthmax', 'new heightmax');
 // Demo  $picname = resizepics('stihche.jpg', '180', '140');
 
-$pickname = resizepics($_REQUEST["url"], $_REQUEST["sizex"], $_REQUEST["sizey"]);
+$pickname = resizepics(($_REQUEST["url"]), $_REQUEST["sizex"], $_REQUEST["sizey"]);
 echo $pickname;
 //Error
 die( "<font color=\"#FF0066\"><center><b>File not exists :(<b></center></FONT>");
