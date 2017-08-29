@@ -1,6 +1,6 @@
 <?php
 	/*require 'vendor/autoload.php';*/
-    /*error_reporting(E_ALL);*/
+    /*error_reporting(E_ALL);
 
     ini_set("display_errors", 1);
     ini_set('allow_url_fopen',1);
@@ -22,8 +22,10 @@ function print_gzipped_page($content) {
     $encoding = gzipStart();
     $encoding = true;
     $contents = $content;
+
     if( $encoding ){
         echo $contents;
+
         $gzip_size        = ob_get_length();
         $gzip_contents    = ob_get_clean(); // PHP < 4.3 use ob_get_contents() + ob_end_clean()
         header('Content-Encoding: gzip');

@@ -10,23 +10,27 @@ require "common.php";
 
 	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no">
 	<style>
-		body{ margin:10px; padding:10px; border:0px; }
-		span{float:left; display:inline-block;}
-		#url {width: 50% !important; height:30px; display:inline-block; ; text-align:left;}
-		#sizex, #sizey {width: 5% !important; height:30px; display:inline-block; text-align:center;}
-		input[type=button] {width: 40px !important;; height:30px; display:inline-block;}
-		#urlWriteArea { float:left; display:inline-block; width:100%; height:inherit; }
+		html, body { height:100%; overflow:hidden }
+		#contents {  /*border:1px solid red;*/ height:auto; height:90%; }
+		#urlWriteArea { height:5%; }
+
+		#url {width: 60%; height:1.5em; display:inline-block; ; text-align:left;}
+		#sizex, #sizey {width: 8% !important; height:1.5em; display:inline-block; text-align:center;}
+		input[type=button] {width: 5%; height:1.5em; display:inline-block;}
+
 	</style>
 
 </head>
 <body>
 <div id="urlWriteArea">
-	<input type="text" value="https://m.daum.net/" name="url" id="url"  />&nbsp;
+	<input type="text" value="http://m.ssu.ac.kr/html/themes/m/html/index.jsp" name="url" id="url"  />&nbsp;
 	<input type="button" name="show" id="show" value="▶" onclick="document.getElementById('webpage').src = ('<?=fixedUrl?>'+ document.getElementById('url').value);"/>
 	<input type="text" value="" name="sizex" id="sizex" /> x <input type="text" value="" name="sizey" id="sizey" />
 </div>
-<br /><br />
-<iframe src="" width="70%" height="100%" style="height:100% !important; min-height:500px; width:70% !important; min-width:330px;" id='webpage' frameborder="0"></iframe>
+<div id="contents">
+	<iframe src="" width="70%" height="100%" style="height:100% ; width:100% ; " id='webpage' frameborder="1"></iframe>
+
+</div>
 
 <script>
 	window.onload = function(){
