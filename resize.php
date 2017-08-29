@@ -6,7 +6,7 @@
 // $picname = resizepics('pics', 'new widthmax', 'new heightmax');
 // Demo  $picname = resizepics('stihche.jpg', '180', '140');
 
-$pickname = resizepics(($_REQUEST["url"]), $_REQUEST["sizex"], $_REQUEST["sizey"]);
+$pickname = resizepics(urldecode($_REQUEST["url"]), $_REQUEST["sizex"], $_REQUEST["sizey"]);
 echo $pickname;
 //Error
 die( "<font color=\"#FF0066\"><center><b>File not exists :(<b></center></FONT>");
@@ -37,31 +37,32 @@ function resizepics($pics, $newwidth, $newheight){
     $newwidth = $img_width;
     $newheight = $img_height;
 
-    if(preg_match("/.jpg/i", "$pics") || preg_match("/.jpeg/i", "$pics")){
-        header('Content-type: image/jpeg');
-        $source = imagecreatefromjpeg($pics);
-    }
+	if (empty($newwidth) or empty($newheight)){
+		return "";
+	}
+
     if(preg_match("/.png/i", "$pics")){
         header('Content-type: image/png');
         $source = imagecreatefrompng($pics);
-    }
-    if(preg_match("/.gif/i", "$pics")){
+    }else if(preg_match("/.gif/i", "$pics")){
         header('Content-type: image/gif');
         $source = imagecreatefromgif($pics);
-    }
+    }else {
+        header('Content-type: image/jpeg');
+        $source = imagecreatefromjpeg($pics);
+	}
+
     $thumb = imagecreatetruecolor($newwidth, $newheight);
+	
     imagecopyresized($thumb, $source, 0, 0, 0, 0, $newwidth, $newheight, $width, $height);
     /*return imagejpeg($thumb);*/
 
-    if(preg_match("/.jpeg/i", "$pics") || preg_match("/.jpg/i", "$pics")){
-        return imagejpeg($thumb, null, 100);
-    }
     if(preg_match("/.png/i", "$pics")){
-        return imagepng($thumb, null, 1);
-    }
-    if(preg_match("/.gif/i", "$pics")){
-        header('Content-type: image/gif');
+        return imagepng($thumb, null, 5);
+    }else if(preg_match("/.gif/i", "$pics")){
         return imagegif($thumb);
-    }
+    }else{
+	    return imagejpeg($thumb, null, 50);
+	}
 }
 ?>
