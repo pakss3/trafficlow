@@ -20,7 +20,7 @@
 // Include this function on your pages
 function print_gzipped_page($content) {
     $encoding = gzipStart();
-    $encoding = true;
+
     $contents = $content;
 
     if( $encoding ){
@@ -28,17 +28,22 @@ function print_gzipped_page($content) {
 
         $gzip_size        = ob_get_length();
         $gzip_contents    = ob_get_clean(); // PHP < 4.3 use ob_get_contents() + ob_end_clean()
+
         header('Content-Encoding: gzip');
         header('Vary: Accept-Encoding');
         header("cache-control: must-revalidate");
         header( 'Content-Length: ' . $gzip_size );
+
         echo "\x1f\x8b\x08\x00\x00\x00\x00\x00",
-        substr(gzcompress($gzip_contents, 9), 0, - 4),
+        substr(gzcompress($gzip_contents, 9), 0, $gzip_size - 4),
         pack('V', crc32($gzip_contents)),    // crc32 and
         pack('V', $gzip_size);
+
         exit();
     }else{
-        if(!ob_start("ob_gzhandler")){
+        if (!in_array('ob_gzhandler', ob_list_handlers())) {
+            ob_start('ob_gzhandler');
+        } else {
             ob_start();
         }
         echo ($contents.PHP_EOL.PHP_EOL);
@@ -55,7 +60,7 @@ function gzipStart(){
         if ( extension_loaded('zlib') )
         {
             ob_start('ob_gzhandler');
-            $do_gzip_compress = TRUE;
+
         }
     }
     else if ( $phpver > '4.0' )

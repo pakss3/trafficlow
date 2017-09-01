@@ -111,7 +111,7 @@ function crawl_page($url, $depth = 1)
     }
     $base_url = parse_url($url)["host"];
     $seen[$url] = true;
-    $html =@file_get_contents($url);
+    $html =get_url_contents_and_final_url($url);
     $encoding =mb_detect_encoding($html);
     $dom = new DOMDocument('1.0',$encoding);
     @$dom->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', $encoding));
@@ -156,7 +156,7 @@ function crawl_page($url, $depth = 1)
     }
     foreach ($link as $element) {
         $href = $element->getAttribute('href');
-        if (!(false !== strpos($src, 'http'))) {
+        if (!(false !== strpos($href, 'http'))) {
             $href = http_path_to_url($href,$url);
         }
         $element->setattribute('href',$href);
@@ -403,4 +403,46 @@ function http_path_to_url($path, $base_uri)
             return $base_a['shp'] .$ap .(isset($op_a['query']) ? '?'.$op_a['query'] : '') .(isset($op_a['fragment']) ? '#'.$op_a['fragment'] : '') ;
         }
     }
+}
+
+// https://trafficlow:8087/testpdf.php
+function get_url_contents_and_final_url(&$url)
+{
+    $getHost = function($url){
+        $convertUrl =parse_url($url);
+        return $convertUrl["scheme"]."://".$convertUrl["host"];
+    };
+
+    $host = $getHost($url);
+
+
+
+    $context = stream_context_create(
+        array(
+            "http" => [
+                "follow_location" => false,
+                "method" => "GET",
+                "header" => "User-Agent: MS DOS 6.0 Firefox Browser\r\nReferer: {$host}/\r\n"
+            ],
+            "ssl"=>[		'verify_peer' => FALSE,
+                'verify_peer_name' => FALSE,
+                'allow_self_signed'=> TRUE
+            ]
+        )
+    );
+
+    $result = @file_get_contents($url, false, $context);
+
+    $pattern = "/^Location:\s*(.*)$/i";
+    $location_headers = preg_grep($pattern, $http_response_header);
+
+    if (!empty($location_headers) &&
+        preg_match($pattern, array_values($location_headers)[0], $matches))
+    {
+        $url = $matches[1];
+
+    }
+
+
+    return $result;
 }
