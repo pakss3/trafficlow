@@ -6,12 +6,17 @@
 // $picname = resizepics('pics', 'new widthmax', 'new heightmax');
 // Demo  $picname = resizepics('stihche.jpg', '180', '140');
 
-$pickname = resizepics(urldecode($_REQUEST["url"]), $_REQUEST["sizex"], $_REQUEST["sizey"]);
+$quality = $_REQUEST["quality"];
+$url = urldecode($_REQUEST["url"]);
+$sizex = $_REQUEST["sizex"];
+$sizey = $_REQUEST["sizey"];
+
+$pickname = resizepics($url, $sizex, $sizey, $quality);
 echo $pickname;
 //Error
 die( "<font color=\"#FF0066\"><center><b>File not exists :(<b></center></FONT>");
 //Funcion resizepics
-function resizepics($pics, $newwidth, $newheight){
+function resizepics($pics, $newwidth, $newheight, $quality = 100){
 
     list($width, $height) = getimagesize($pics);
 
@@ -53,16 +58,34 @@ function resizepics($pics, $newwidth, $newheight){
 	}
 
     $thumb = imagecreatetruecolor($newwidth, $newheight);
-	
+
     imagecopyresized($thumb, $source, 0, 0, 0, 0, $newwidth, $newheight, $width, $height);
-    /*return imagejpeg($thumb);*/
+
 
     if(preg_match("/.png/i", "$pics")){
-        return imagepng($thumb, null, 5);
+        $red = imagecolorallocate($thumb, 255, 0, 0);
+        $black = imagecolorallocate($thumb, 0, 0, 0);
+        imagecolortransparent($thumb, $black);
+        imagefilledrectangle($thumb, 4, 4, 50, 25, $red);
+        $quality -= 100;
+        $quality = round(abs($quality));
+
+        $img = imagepng($thumb, null, $quality, PNG_ALL_FILTERS);
+
+
     }else if(preg_match("/.gif/i", "$pics")){
-        return imagegif($thumb);
+        $transparent = imagecolorallocatealpha($thumb, 255, 255, 255, 127);
+        imagefill($thumb, 0, 0, $transparent);
+        imagealphablending($thumb, true);
+
+        $img = imagegif($thumb);
+
     }else{
-	    return imagejpeg($thumb, null, 50);
+        $img = imagejpeg($thumb, null, $quality);
 	}
+
+    imagedestroy($thumb);
+
+    return $img;
 }
 ?>

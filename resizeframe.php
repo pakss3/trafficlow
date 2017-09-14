@@ -9,12 +9,19 @@ function getImgMaxHeightSize(){
     $defaultY = "200";
     return (!isset($_REQUEST["sizey"])) ? $defaultY : $_REQUEST["sizey"];
 }
+function getImgQuality(){
+    $defaultQuality = 100;
+    return (!isset($_REQUEST["quality"])) ? $defaultQuality : $_REQUEST["quality"];
+}
+function defaultParameter(){
+    return ("&sizex=".getImgMaxWidthSize()."&sizey=". getImgMaxHeightSize()."&quality=". getImgQuality());
+}
+
 function getDataURI($imageurl) {
     if((strpos($imageurl,"base64") !== false) or (strpos($imageurl,imageResizeUrl) !== false) or (strpos($imageurl,"sizey") !== false) or (strpos($imageurl,"sizex") !== false) ){
-        return $imageurl;
+        return $imageurl.defaultParameter();
     }
-
-    return trim(imageResizeUrl.urlencode($imageurl)."&sizex=".getImgMaxWidthSize()."&sizey=". getImgMaxHeightSize());
+    return trim(imageResizeUrl.urlencode($imageurl).defaultParameter());
 }
 function addScriptMinifier($srcUrl) {
     if(strpos($srcUrl,"jsmini") !== false ){
@@ -129,7 +136,7 @@ function crawl_page($url, $depth = 1)
     foreach ($anchors as $element) {
         $href = $element->getAttribute('href');
         if (false === strpos($href, 'javascript')  ) {
-            $element->setAttribute('href',fixedUrl.urlencode(http_path_to_url($href, $url)));
+            $element->setAttribute('href',fixedUrl.urlencode(http_path_to_url($href, $url)).defaultParameter());
             $element->setAttribute("target","_self");
         }
     }
