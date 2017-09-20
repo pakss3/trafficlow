@@ -1,0 +1,8 @@
+{
+    "require": {
+	"mikehaertl/phpwkhtmltopdf": "^2.2",
+	"dompdf/dompdf": "^0.8.0",
+	"thiagoalessio/tesseract_ocr": "1.1.0",
+        "iboldurev/api-ai-php": "^0.2.5"
+    }
+}
